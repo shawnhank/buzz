@@ -158,34 +158,17 @@ function decodeArchiveBatchResult(
   };
 }
 
-// ── Subscription-change notifier ─────────────────────────────────────────────
-
-/**
- * Module-level notifier for subscription mutations (create/delete).
- * The archive sync manager subscribes to this to reload live subscriptions
- * without needing manager instances threaded through UI props.
- */
-const subscriptionChangeListeners = new Set<() => void>();
-
-export function onSubscriptionChange(listener: () => void): () => void {
-  subscriptionChangeListeners.add(listener);
-  return () => subscriptionChangeListeners.delete(listener);
-}
-
-function notifySubscriptionChange(): void {
-  for (const listener of subscriptionChangeListeners) {
-    listener();
-  }
-}
-
 // ── Agent-metrics-change notifier ────────────────────────────────────────────
 
 /**
  * Module-level notifier for newly persisted agent turn metrics (kind 44200).
  * `useAgentUsageSeries` subscribes to this to invalidate its query without
- * polling. Fired only when the backend confirms `persistedAgentMetrics > 0`
- * for a successful `archiveEvents` call, or when a kind-44200 subscription
- * mutation succeeds (`collectionEnabled` is part of the usage query result).
+ * polling. Two producers: a kind-44200 subscription mutation succeeding here
+ * (`collectionEnabled` is part of the usage query result), and the native
+ * archive sync task persisting new metric rows — that one arrives as the
+ * `archive-agent-metrics-changed` Tauri event, bridged by
+ * `useArchiveAgentMetricsBridge`, since the batch it belongs to no longer
+ * passes through JS.
  */
 const agentMetricsChangeListeners = new Set<() => void>();
 
@@ -267,7 +250,6 @@ export async function agentMetricArchiveDefaultEnabled(): Promise<boolean> {
  */
 export async function mergeSaveSubscriptionKinds(kind: number): Promise<void> {
   await invokeTauri("merge_save_subscription_kinds", { kind });
-  notifySubscriptionChange();
   // `collectionEnabled` is part of the usage query result — toggling kind
   // 44200 on must invalidate mounted usage queries. Other kinds don't affect
   // usage state.
@@ -291,7 +273,6 @@ export async function mergeSaveSubscriptionKinds(kind: number): Promise<void> {
  */
 export async function removeSaveSubscriptionKind(kind: number): Promise<void> {
   await invokeTauri("remove_save_subscription_kind", { kind });
-  notifySubscriptionChange();
   if (kind === KIND_AGENT_TURN_METRIC) {
     notifyAgentMetricsChanged();
   }
@@ -312,7 +293,24 @@ export async function createSaveSubscription(
     scopeValue,
     kinds,
   });
-  notifySubscriptionChange();
+}
+
+// ── Native archive sync lifecycle ────────────────────────────────────────────
+
+/**
+ * Start the backend archive sync task for the current identity.
+ *
+ * Idempotent per identity + relay. Must only be called after observer
+ * reconciliation resolves — see `useArchiveSync` for why the backend cannot
+ * gate itself.
+ */
+export async function startArchiveSync(): Promise<void> {
+  await invokeTauri("start_archive_sync");
+}
+
+/** Stop the backend archive sync task. */
+export async function stopArchiveSync(): Promise<void> {
+  await invokeTauri("stop_archive_sync");
 }
 
 /**
@@ -338,9 +336,6 @@ export async function deleteSaveSubscription(
     scopeType,
     scopeValue,
   });
-  if (removed) {
-    notifySubscriptionChange();
-  }
   return removed;
 }
 

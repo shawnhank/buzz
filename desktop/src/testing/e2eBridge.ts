@@ -13358,6 +13358,12 @@ export function maybeInstallE2eTauriMocks() {
       case "archive_events":
         // Returns the ArchiveBatchResult shape the UI expects.
         return { persisted: 0, dropped: 0 };
+      // Archive sync runs natively; the bridge has no relay-backed backend to
+      // drive, so these are accepted no-ops. Without them every AppShell mount
+      // logs an unknown-command warning once the gate opens.
+      case "start_archive_sync":
+      case "stop_archive_sync":
+        return null;
       case "agent_metric_archive_default_enabled":
         return activeConfig?.mock?.agentMetricArchiveDefaultEnabled ?? true;
       case "set_prevent_sleep_active":
