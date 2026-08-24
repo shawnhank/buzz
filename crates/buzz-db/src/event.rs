@@ -476,11 +476,12 @@ pub(crate) async fn query_events_on(
         }
     }
 
-    // e-tag pushdown via JSONB containment: tags @> '[["e","<hex>"]]'.
-    // Multiple e-tags use OR (any match). Served by idx_events_tags_gin
-    // (GIN, jsonb_path_ops — migrations/0004): the channel-window aux closure
-    // fans this out once per retained row, which made unindexed containment
-    // the dominant scroll-back cost (~1.7s/page on staging).
+    // e-tag pushdown via JSONB path matching: jsonb_path_exists(tags, '$[*] ?
+    // (@[0] == "e" && @[1] == "<hex>")'). Thread reply events have 4-element
+    // #e tags (with NIP-10 markers like "root"/"reply") that containment
+    // @> '[["e","<hex>"]]' misses because the containment check requires the
+    // 2-element sub-array to match exactly. The jsonb_path_exists check matches
+    // the hex ID in any #e tag regardless of how many elements follow.
     if let Some(ref e_tags) = q.e_tags {
         if !e_tags.is_empty() {
             qb.push(" AND (");
@@ -488,10 +489,10 @@ pub(crate) async fn query_events_on(
                 if i > 0 {
                     qb.push(" OR ");
                 }
-                // Build the JSONB literal: [["e","<hex>"]]
-                let containment = serde_json::json!([["e", hex_id]]);
-                qb.push(format!("{col_prefix}tags @> "));
-                qb.push_bind(containment);
+                qb.push(format!(
+                    r#"jsonb_path_exists({col_prefix}tags, '$[*] ? (@[0] == "e" && @[1] == "{}")')"#,
+                    hex_id
+                ));
             }
             qb.push(")");
         }
@@ -748,9 +749,10 @@ pub(crate) async fn count_events_on(conn: &mut sqlx::PgConnection, q: &EventQuer
                 if i > 0 {
                     qb.push(" OR ");
                 }
-                let containment = serde_json::json!([["e", hex_id]]);
-                qb.push(format!("{col_prefix}tags @> "));
-                qb.push_bind(containment);
+                qb.push(format!(
+                    r#"jsonb_path_exists({col_prefix}tags, '$[*] ? (@[0] == "e" && @[1] == "{}")')"#,
+                    hex_id
+                ));
             }
             qb.push(")");
         }
