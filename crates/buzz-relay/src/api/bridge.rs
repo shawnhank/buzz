@@ -392,6 +392,9 @@ const WINDOW_AUX_DELETE_KINDS: [u32; 2] = [
     buzz_core::kind::KIND_DELETION,
     buzz_core::kind::KIND_NIP29_DELETE_EVENT,
 ];
+/// Kind:9 events with a parent `#e` tag (thread replies). Fetched by-reference
+/// so replies land in the timeline rather than being invisible behind a count.
+const WINDOW_REPLY_KINDS: [u32; 1] = [buzz_core::kind::KIND_STREAM_MESSAGE,];
 
 /// Page size for one aux-closure hop. Matches the DB clamp
 /// (`buzz_db::DEFAULT_MAX_PAGE_LIMIT`) so each page is one full query.
@@ -599,6 +602,29 @@ async fn handle_channel_window_filter(
             if hop_ids.is_empty() {
                 break;
             }
+        }
+    }
+
+    // 2b. Reply content: kind:9 events with a parent `#e` tag pointing to
+    //     retained row IDs. The window has row headers + summaries but never
+    //     assembled the actual reply messages, so replies (including agent
+    //     replies) were invisible behind a count.
+    if extension_flag(raw, "include_replies") && !row_ids_hex.is_empty() {
+        let mut reply_query = buzz_db::EventQuery::for_community(tenant.community());
+        reply_query.kinds =
+            Some(WINDOW_REPLY_KINDS.iter().map(|k| *k as i32).collect());
+        reply_query.e_tags = Some(row_ids_hex);
+        reply_query.limit = Some(1000);
+        let reply_events = session
+            .query_events(&reply_query)
+            .await
+            .map_err(|e| internal_error(&format!("window replies error: {e}")))?;
+        for se in reply_events {
+            let v = serde_json::to_value(&se.event)
+                .map_err(|e| {
+                    internal_error(&format!("window reply serialize: {e}"))
+                })?;
+            events.push(v);
         }
     }
 

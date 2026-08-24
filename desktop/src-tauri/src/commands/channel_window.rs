@@ -28,6 +28,7 @@ fn build_channel_window_filter(
     filter.insert("top_level".to_string(), serde_json::json!(true));
     filter.insert("include_summaries".to_string(), serde_json::json!(true));
     filter.insert("include_aux".to_string(), serde_json::json!(true));
+    filter.insert("include_replies".to_string(), serde_json::json!(true));
     if let Some(cursor) = cursor {
         filter.insert("until".to_string(), serde_json::json!(cursor.created_at));
         filter.insert("before_id".to_string(), serde_json::json!(cursor.event_id));
