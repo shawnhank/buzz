@@ -13,6 +13,11 @@ use super::*;
 pub(crate) enum ProfileReconcileOutcome {
     Reconciled,
     SkippedDisabled,
+    /// A newer rename committed while this fire-and-forget task was in flight,
+    /// so the snapshot this task carried is stale and was not published.
+    /// Distinct from `SkippedDisabled`: reconciliation is enabled and healthy,
+    /// this particular snapshot was simply superseded.
+    SkippedSuperseded,
 }
 
 pub(crate) struct ProfileReconcileData {
@@ -284,7 +289,7 @@ pub(crate) async fn reconcile_agent_profile(
             .map_err(|e| e.to_string())?;
         let records = load_managed_agents(app)?;
         if !snapshot_still_current(&records, &data.pubkey, &data.name) {
-            return Ok(());
+            return Ok(ProfileReconcileOutcome::SkippedSuperseded);
         }
     }
 
