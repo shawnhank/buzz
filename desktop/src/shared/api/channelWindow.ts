@@ -13,5 +13,6 @@ export async function getChannelWindowEvents(
     cursor: cursor
       ? { created_at: cursor.createdAt, event_id: cursor.eventId }
       : null,
+    include_replies: true,
   });
 }

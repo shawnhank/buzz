@@ -92,6 +92,7 @@ export function parseChannelWindowResponse(
     .map((event) => ({
       event,
       thread: null as ChannelWindowThreadSummary | null,
+      replies: [] as RelayEvent[],
     }));
   const rowById = new Map(rows.map((row) => [row.event.id, row]));
 
@@ -102,6 +103,19 @@ export function parseChannelWindowResponse(
     if (!row) continue;
     const payload = parseJson<SummaryPayload>(event, "thread summary");
     row.thread = mapSummary(payload);
+  }
+
+  // Attach reply events to their parent rows. The relay fetches kind:9
+  // events with a parent `#e` tag when `include_replies` is true — attach
+  // them so the renderer sees actual reply content, not just counts.
+  for (const event of events) {
+    if (!CONTENT_KINDS.has(event.kind)) continue;
+    const ref = getThreadReference(event.tags);
+    if (ref.parentId === null) continue;
+    const parentRow = rowById.get(ref.parentId);
+    if (parentRow) {
+      parentRow.replies.push(event);
+    }
   }
 
   const boundsEvents = events.filter(

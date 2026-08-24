@@ -65,6 +65,7 @@ class ChannelWindowPage {
   final ChannelPageCursor? startCursor;
   final List<ChannelWindowRow> rows;
   final List<NostrEvent> aux;
+  final List<NostrEvent> replies;
   final ChannelPageCursor? nextCursor;
   final bool hasMore;
 
@@ -72,6 +73,7 @@ class ChannelWindowPage {
     required this.startCursor,
     required this.rows,
     required this.aux,
+    required this.replies,
     required this.nextCursor,
     required this.hasMore,
   });
@@ -149,6 +151,23 @@ ChannelWindowPage parseChannelWindowResponse(
     throw Exception('Channel window bounds has_more and next_cursor disagree.');
   }
 
+  // Extract reply events: kind:9 events with a parent `#e` tag (thread
+  // replies). These are NOT top-level rows — they reference a row as their
+  // parent. Previously the window only had row headers and summary counts;
+  // the actual reply content was never assembled, so replies (including agent
+  // replies) were invisible behind a count.
+  final replyIds = <String>{};
+  for (final event in events) {
+    if (event.kind != 9) continue;
+    final parentE = event.getTagValues('e');
+    if (parentE.isEmpty) continue;
+    replyIds.add(event.id);
+  }
+  final replies = [
+    for (final event in events)
+      if (replyIds.contains(event.id)) event,
+  ];
+
   return ChannelWindowPage(
     startCursor: startCursor,
     rows: rows,
@@ -156,6 +175,7 @@ ChannelWindowPage parseChannelWindowResponse(
       for (final event in events)
         if (EventKind.channelAuxEventKinds.contains(event.kind)) event,
     ],
+    replies: replies,
     nextCursor: nextCursor,
     hasMore: hasMore,
   );

@@ -10,6 +10,7 @@ export type ChannelWindowThreadSummary = {
 export type ChannelWindowRow = {
   event: RelayEvent;
   thread: ChannelWindowThreadSummary | null;
+  replies: RelayEvent[];
 };
 export type LiveThreadSummary = {
   summary: ChannelWindowThreadSummary;
@@ -248,8 +249,10 @@ export function mapChannelWindowEvents(
   };
   const pages = store.pages.map((page) => {
     const rows = page.rows.map((row) => {
-      const event = mapEvent(row.event);
-      return event === row.event ? row : { ...row, event };
+      const nextEvent = mapEvent(row.event);
+      const nextReplies = row.replies.map(mapEvent);
+      if (nextEvent === row.event && nextReplies === row.replies) return row;
+      return { ...row, event: nextEvent, replies: nextReplies };
     });
     const aux = page.aux.map(mapEvent);
     return rows.every((row, index) => row === page.rows[index]) &&
@@ -266,7 +269,12 @@ export function mapChannelWindowEvents(
 export function flattenChannelWindowEvents(store: ChannelWindowStore) {
   const byId = new Map<string, RelayEvent>();
   for (const page of store.pages) {
-    for (const row of page.rows) byId.set(row.event.id, row.event);
+    for (const row of page.rows) {
+      byId.set(row.event.id, row.event);
+      for (const reply of row.replies) {
+        byId.set(reply.id, reply);
+      }
+    }
     for (const event of page.aux) byId.set(event.id, event);
   }
   for (const event of store.liveOverlay) byId.set(event.id, event);

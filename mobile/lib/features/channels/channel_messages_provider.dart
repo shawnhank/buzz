@@ -182,6 +182,7 @@ class ChannelMessagesNotifier extends Notifier<AsyncValue<List<NostrEvent>>> {
       'top_level': true,
       'include_summaries': true,
       'include_aux': true,
+      'include_replies': true,
       if (cursor != null) 'before_id': cursor.eventId,
     },
   );
