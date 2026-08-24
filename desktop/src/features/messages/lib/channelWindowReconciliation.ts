@@ -65,7 +65,7 @@ function mergeChronologicalMessages(
   authoritative: RelayEvent[],
 ) {
   const retained = [...cacheOnly].sort((left, right) =>
-    compareRelayOrder(right, left),
+    compareRelayOrder(left, right),
   );
   const merged: RelayEvent[] = [];
   let retainedIndex = 0;
