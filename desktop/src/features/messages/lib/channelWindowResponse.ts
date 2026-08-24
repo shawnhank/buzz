@@ -11,6 +11,7 @@ import type {
   ChannelWindowThreadSummary,
   LiveThreadSummary,
 } from "./channelWindowStore";
+import { getThreadReference } from "./threading";
 
 const CONTENT_KINDS = new Set<number>(CHANNEL_TIMELINE_CONTENT_KINDS);
 const AUX_KINDS = new Set<number>(CHANNEL_AUX_EVENT_KINDS);
