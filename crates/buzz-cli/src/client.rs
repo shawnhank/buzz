@@ -67,6 +67,21 @@ const ALLOWED_MIMES: &[&str] = &[
     "image/gif",
     "image/webp",
     "video/mp4",
+    // Agent attachments — documents, archives, text files
+    "application/pdf",
+    "application/zip",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.ms-excel",
+    "application/vnd.ms-word",
+    "text/plain",
+    "text/csv",
+    "text/html",
+    "text/markdown",
+    "application/json",
+    "application/xml",
+    "text/xml",
 ];
 
 /// Maximum file size for image uploads (50 MB).
