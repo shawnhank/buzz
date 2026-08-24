@@ -38,7 +38,7 @@ export function reconcileChannelWindowMessages(
     for (const event of windowEvents) {
       merged = reconcileIncomingMessage(merged, event);
     }
-    return [...merged].sort((left, right) => compareRelayOrder(right, left));
+    return [...merged].sort((left, right) => compareRelayOrder(left, right));
   }
   const authoritativeIds = new Set(windowEvents.map((event) => event.id));
   const retained = retainRefetchReconciliationEvents(messages).filter(
@@ -65,7 +65,7 @@ function mergeChronologicalMessages(
   authoritative: RelayEvent[],
 ) {
   const retained = [...cacheOnly].sort((left, right) =>
-    compareRelayOrder(right, left),
+    compareRelayOrder(left, right),
   );
   const merged: RelayEvent[] = [];
   let retainedIndex = 0;
