@@ -159,8 +159,8 @@ ChannelWindowPage parseChannelWindowResponse(
   final replyIds = <String>{};
   for (final event in events) {
     if (event.kind != 9) continue;
-    final parentE = event.getTagValues('e');
-    if (parentE.isEmpty) continue;
+    final parentE = event.getTagValue('e');
+    if (parentE == null || parentE.isEmpty) continue;
     replyIds.add(event.id);
   }
   final replies = [
